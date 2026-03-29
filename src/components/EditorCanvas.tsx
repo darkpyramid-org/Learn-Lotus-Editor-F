@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useEditorStore } from "@/store/editorStore";
 import { GlyphNode } from "@/types/editor";
-import { loadGlyph, GlyphCache } from "@/services/glyphLoader";
+import { loadGlyph, GlyphCache } from "@/services/optimizedGlyphLoader";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 

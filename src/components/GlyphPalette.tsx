@@ -1,8 +1,8 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { GLYPH_DATASET, CATEGORIES } from "@/data/glyphs";
 import { useEditorStore } from "@/store/editorStore";
 import { GlyphDef } from "@/types/editor";
-import { getGlyphUrl } from "@/services/glyphLoader";
+import { loadGlyph, preloadGlyphs, getCachedGlyph, getGlyphUrl, getCacheStats, preloadPriorityGlyphs } from "@/services/optimizedGlyphLoader";
 import { Search, X, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ export function GlyphPalette() {
   const [search, setSearch] = useState("");
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
   const addGlyph = useEditorStore((s) => s.addGlyph);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const toggleCat = (cat: string) => {
     setExpandedCats(prev => ({ ...prev, [cat]: !prev[cat] }));
@@ -34,6 +35,38 @@ export function GlyphPalette() {
 
     return groups;
   }, [search]);
+
+  // Preload priority glyphs immediately and visible glyphs when component mounts
+  useEffect(() => {
+    // Preload most common glyphs first
+    preloadPriorityGlyphs();
+    
+    // Then preload visible glyphs
+    const visibleGlyphs = Object.values(grouped).flat().slice(0, 12); // Reduced to 12 for faster initial load
+    const glyphIds = visibleGlyphs.map(g => g.id);
+    preloadGlyphs(glyphIds);
+  }, [grouped]);
+
+  // Preload more glyphs when scrolling
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const scrollPercent = scrollTop / (scrollHeight - clientHeight);
+      
+      // Preload more glyphs when 80% scrolled (reduced threshold)
+      if (scrollPercent > 0.8) {
+        const allGlyphs = Object.values(grouped).flat();
+        const nextBatch = allGlyphs.slice(12, 30).map(g => g.id); // Smaller batches
+        preloadGlyphs(nextBatch);
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [grouped]);
 
   const clearSearch = useCallback(() => setSearch(""), []);
 
@@ -64,7 +97,7 @@ export function GlyphPalette() {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full custom-scrollbar">
+        <ScrollArea className="h-full custom-scrollbar" ref={containerRef}>
           <div className="p-4 space-y-8">
             {Object.keys(grouped).length > 0 ? (
               Object.entries(grouped).map(([cat, glyphs]) => {
@@ -120,9 +153,12 @@ export function GlyphPalette() {
       </div>
 
       <div className="mt-auto px-4 py-2 border-t border-border bg-muted/20 shrink-0">
-        <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-widest">
-           Signs categorized by Gardiner group
-        </p>
+        <div className="flex justify-between items-center">
+          <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+            Signs categorized by Gardiner group
+          </p>
+          <PerformanceIndicator />
+        </div>
       </div>
     </div>
   );
@@ -136,7 +172,27 @@ function GlyphCard({
   onAdd: (id: string) => void;
 }) {
   const [imgStatus, setImgStatus] = useState<"loading" | "success" | "error">("loading");
+  const [svgContent, setSvgContent] = useState<string>("");
   const url = getGlyphUrl(glyph.id);
+
+  // Try to load from optimized cache first, fallback to direct image loading
+  useEffect(() => {
+    const cached = getCachedGlyph(glyph.id);
+    if (cached) {
+      setSvgContent(cached.content);
+      setImgStatus("success");
+    } else {
+      // Load via optimized loader
+      loadGlyph(glyph.id)
+        .then(glyphData => {
+          setSvgContent(glyphData.content);
+          setImgStatus("success");
+        })
+        .catch(() => {
+          setImgStatus("error");
+        });
+    }
+  }, [glyph.id]);
 
   return (
     <Card 
@@ -148,19 +204,32 @@ function GlyphCard({
           {imgStatus === "loading" && (
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/30 absolute" />
           )}
-          <img
-            src={url}
-            alt={glyph.label}
-            onLoad={() => setImgStatus("success")}
-            onError={() => setImgStatus("error")}
-            className={cn(
-              "w-full h-full object-contain p-1 transition-opacity duration-300",
-              imgStatus === "success" ? "opacity-100" : "opacity-0"
-            )}
-            style={{ 
-              filter: "brightness(0) saturate(100%) invert(30%) sepia(50%) saturate(600%) hue-rotate(10deg)" 
-            }}
-          />
+          
+          {/* Use SVG content directly if available for better performance */}
+          {svgContent && imgStatus === "success" ? (
+            <div
+              className="w-full h-full p-1 transition-opacity duration-300"
+              style={{ 
+                filter: "brightness(0) saturate(100%) invert(30%) sepia(50%) saturate(600%) hue-rotate(10deg)" 
+              }}
+              dangerouslySetInnerHTML={{ __html: svgContent }}
+            />
+          ) : (
+            <img
+              src={url}
+              alt={glyph.label}
+              onLoad={() => setImgStatus("success")}
+              onError={() => setImgStatus("error")}
+              className={cn(
+                "w-full h-full object-contain p-1 transition-opacity duration-300",
+                imgStatus === "success" ? "opacity-100" : "opacity-0"
+              )}
+              style={{ 
+                filter: "brightness(0) saturate(100%) invert(30%) sepia(50%) saturate(600%) hue-rotate(10deg)" 
+              }}
+            />
+          )}
+          
           {imgStatus === "error" && (
             <div className="text-[10px] font-mono font-bold text-destructive/40">{glyph.id}</div>
           )}
@@ -175,5 +244,31 @@ function GlyphCard({
         </div>
       </div>
     </Card>
+  );
+}
+
+function PerformanceIndicator() {
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const cacheStats = getCacheStats();
+      setStats(cacheStats);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!stats) return null;
+
+  const hitRate = stats.performance?.cacheHitRate || 0;
+  const color = hitRate > 80 ? 'text-green-500' : hitRate > 50 ? 'text-yellow-500' : 'text-red-500';
+
+  return (
+    <div className="text-[8px] font-mono text-muted-foreground/40 flex items-center gap-1">
+      <span>Cache:</span>
+      <span className={color}>{hitRate.toFixed(0)}%</span>
+      <span>({stats.cacheSize})</span>
+    </div>
   );
 }

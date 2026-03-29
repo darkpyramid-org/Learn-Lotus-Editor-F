@@ -1,13 +1,9 @@
-import { useEffect, useState } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { GlyphPalette } from "@/components/GlyphPalette";
-import { EditorCanvas } from "@/components/EditorCanvas";
-import { Toolbar } from "@/components/Toolbar";
-import { PropertiesPanel } from "@/components/PropertiesPanel";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { useEditorStore } from "@/store/editorStore";
 import { copyToClipboard, pasteFromClipboard } from "@/services/clipboardService";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { PerformanceStats } from "@/components/PerformanceStats";
 import { 
   Sheet, 
   SheetContent, 
@@ -17,9 +13,22 @@ import {
   SheetDescription 
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Settings2, Palette } from "lucide-react";
+import { Palette, Settings2 } from "lucide-react";
 
-const queryClient = new QueryClient();
+// Lazy load heavy components
+const GlyphPalette = lazy(() => import("@/components/GlyphPalette").then(m => ({ default: m.GlyphPalette })));
+const EditorCanvas = lazy(() => import("@/components/EditorCanvas").then(m => ({ default: m.EditorCanvas })));
+const Toolbar = lazy(() => import("@/components/Toolbar").then(m => ({ default: m.Toolbar })));
+const PropertiesPanel = lazy(() => import("@/components/PropertiesPanel").then(m => ({ default: m.PropertiesPanel })));
+
+// Lightweight loading component
+function ComponentLoader() {
+  return (
+    <div className="flex items-center justify-center p-4">
+      <div className="animate-spin h-4 w-4 border-2 border-amber-500 border-t-transparent rounded-full"></div>
+    </div>
+  );
+}
 
 function Editor() {
   const { nodes, selectedIds, removeSelected, addGlyph, quadratSize } = useEditorStore();
@@ -62,7 +71,9 @@ function Editor() {
       <div className="app-shell h-screen w-screen flex flex-col overflow-hidden bg-background">
         {/* Top Navigation / Toolbar */}
         <header className="toolbar-area border-b border-border bg-card/80 backdrop-blur-md z-50 shrink-0 h-14 flex items-center px-4 relative">
-          <Toolbar />
+          <Suspense fallback={<ComponentLoader />}>
+            <Toolbar />
+          </Suspense>
           
           {/* Mobile Action Buttons */}
           <div className="lg:hidden flex items-center gap-1 ml-auto">
@@ -77,7 +88,9 @@ function Editor() {
                   <SheetTitle>Glyph Palette</SheetTitle>
                   <SheetDescription>Browse and add hieroglyphs</SheetDescription>
                 </SheetHeader>
-                <GlyphPalette />
+                <Suspense fallback={<ComponentLoader />}>
+                  <GlyphPalette />
+                </Suspense>
               </SheetContent>
             </Sheet>
 
@@ -92,7 +105,9 @@ function Editor() {
                   <SheetTitle>Properties</SheetTitle>
                   <SheetDescription>Edit selected glyph transform</SheetDescription>
                 </SheetHeader>
-                <PropertiesPanel />
+                <Suspense fallback={<ComponentLoader />}>
+                  <PropertiesPanel />
+                </Suspense>
               </SheetContent>
             </Sheet>
           </div>
@@ -102,21 +117,27 @@ function Editor() {
           {/* Desktop Left Sidebar: Palette */}
           {!isMobile && (
             <aside className="palette-sidebar border-r border-border bg-card transition-all duration-300 shadow-sm z-30" style={{ width: "260px", flexShrink: 0 }}>
-              <GlyphPalette />
+              <Suspense fallback={<ComponentLoader />}>
+                <GlyphPalette />
+              </Suspense>
             </aside>
           )}
 
           {/* Center: Editor Content */}
           <main className="editor-main flex-1 overflow-hidden relative bg-[#f4ece1]">
             <div className="canvas-bg h-full w-full overflow-auto scrollbar-thin">
-              <EditorCanvas />
+              <Suspense fallback={<ComponentLoader />}>
+                <EditorCanvas />
+              </Suspense>
             </div>
           </main>
 
           {/* Desktop Right Sidebar: Properties */}
           {!isMobile && (
             <aside className="props-sidebar border-l border-border bg-card transition-all duration-300 shadow-sm z-30" style={{ width: "240px", flexShrink: 0 }}>
-              <PropertiesPanel />
+              <Suspense fallback={<ComponentLoader />}>
+                <PropertiesPanel />
+              </Suspense>
             </aside>
           )}
         </div>
@@ -142,16 +163,13 @@ function Editor() {
         </footer>
       </div>
       <Toaster position="bottom-center" richColors />
+      <PerformanceStats />
     </TooltipProvider>
   );
 }
 
 function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <Editor />
-    </QueryClientProvider>
-  );
+  return <Editor />;
 }
 
 export default App;

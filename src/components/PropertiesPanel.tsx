@@ -36,7 +36,7 @@ export function PropertiesPanel() {
         </header>
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-500">
           <div className="w-16 h-16 rounded-3xl bg-muted/40 flex items-center justify-center mb-6 shadow-sm ring-1 ring-border/50">
-            <MousePointer2 size={24} className="text-muted-foreground/30 animate-pulse" />
+            <MousePointer2 size={24} className="text-muted-foreground/60 animate-pulse" />
           </div>
           <h4 className="text-sm font-bold text-foreground/60 mb-1.5 font-heading">No Sign Selected</h4>
           <p className="text-[11px] text-muted-foreground/50 leading-relaxed font-medium">
@@ -83,7 +83,7 @@ export function PropertiesPanel() {
         <div className="p-4 space-y-6">
           {/* Identity Card */}
           {glyph ? (
-            <Card className="overflow-hidden border-none shadow-sm ring-1 ring-border/50">
+            <Card className="overflow-hidden border-none shadow-sm ring-1 ring-border/50 pt-0">
               <div className="w-full h-48 flex items-center justify-center p-0.5 bg-gradient-to-b from-muted/50 to-muted/20 relative">
                  <img 
                    src={getGlyphUrl(glyph.id)} 
@@ -115,7 +115,7 @@ export function PropertiesPanel() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                  <RotateCw size={12} className="text-secondary-foreground/40" />
+                  <RotateCw size={12} className="text-foreground/60" />
                   Orientation
                 </Label>
                 <span className="text-[11px] font-mono text-primary font-bold bg-primary/10 px-1.5 py-0.5 rounded">
@@ -152,7 +152,7 @@ export function PropertiesPanel() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                  <Maximize size={12} className="text-secondary-foreground/40" />
+                  <Maximize size={12} className="text-foreground/60" />
                   Magnification
                 </Label>
                 <span className="text-[11px] font-mono text-primary font-bold bg-primary/10 px-1.5 py-0.5 rounded">
@@ -188,7 +188,7 @@ export function PropertiesPanel() {
             {/* Flip Controls */}
             <div className="space-y-3">
               <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                <Layers size={12} className="text-secondary-foreground/40" />
+                <Layers size={12} className="text-foreground/60" />
                 Symmetry
               </Label>
               <div className="grid grid-cols-2 gap-2">
@@ -199,7 +199,7 @@ export function PropertiesPanel() {
                   )}
                   onClick={() => setFlip('x', !flipX)}
                 >
-                  <FlipHorizontal2 size={16} className={flipX ? "text-primary" : "text-muted-foreground/50"} />
+                  <FlipHorizontal2 size={16} className={flipX ? "text-primary" : "text-foreground/60"} />
                   <span className={cn("text-[9px] font-black uppercase tracking-tighter", flipX ? "text-primary" : "text-muted-foreground/60")}>Horizontal</span>
                 </Card>
                 <Card 
@@ -209,7 +209,7 @@ export function PropertiesPanel() {
                   )}
                   onClick={() => setFlip('y', !flipY)}
                 >
-                  <FlipVertical2 size={16} className={flipY ? "text-primary" : "text-muted-foreground/50"} />
+                  <FlipVertical2 size={16} className={flipY ? "text-primary" : "text-foreground/60"} />
                   <span className={cn("text-[9px] font-black uppercase tracking-tighter", flipY ? "text-primary" : "text-muted-foreground/60")}>Vertical</span>
                 </Card>
               </div>

@@ -6,7 +6,16 @@
     <title>Lotus | Hieroglyphic SVG Editor</title>
     <meta name="description" content="A professional, web-based Hieroglyphic SVG Editor for archaeology students. Inspired by JSesh, built for the modern web." />
     
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- Performance optimizations -->
+    <link rel="preconnect" href="/" />
+    <link rel="dns-prefetch" href="/" />
+    
+    <!-- Preload critical resources -->
+    <link rel="modulepreload" href="./src/main.tsx" />
+    <link rel="modulepreload" href="./src/App.tsx" />
+    
+    <link rel="icon" type="image/png" sizes="32x32" href="./icon-192.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="./icon-192.png" />
     <link rel="apple-touch-icon" href="./icon-192.png">
     
     <!-- Open Graph / Facebook -->
@@ -23,12 +32,71 @@
     <meta property="twitter:description" content="The production-ready Hieroglyphic editor for the modern web." />
     <meta property="twitter:image" content="./icon-512.png" />
 
+    <!-- Optimize font loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    
+    <!-- Critical CSS inlined for faster rendering -->
+    <style>
+      /* Critical loading styles */
+      body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #fdfaf5; }
+      .loading-screen { 
+        position: fixed; 
+        inset: 0; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        background: #fdfaf5; 
+        z-index: 9999;
+      }
+      .loading-content { 
+        text-align: center; 
+        color: #92400e; 
+      }
+      .loading-glyph { 
+        font-size: 3rem; 
+        animation: pulse 2s infinite; 
+        margin-bottom: 1rem;
+      }
+      .loading-bar {
+        width: 8rem;
+        height: 0.25rem;
+        background: #fbbf24;
+        border-radius: 9999px;
+        overflow: hidden;
+        margin-top: 1rem;
+      }
+      .loading-progress {
+        height: 100%;
+        background: #d97706;
+        border-radius: 9999px;
+        animation: progress 2s infinite;
+      }
+      @keyframes pulse { 
+        0%, 100% { opacity: 0.4; } 
+        50% { opacity: 1; } 
+      }
+      @keyframes progress {
+        0% { width: 0%; }
+        50% { width: 70%; }
+        100% { width: 100%; }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Fallback loading screen for users with JS disabled or slow connections -->
+      <div class="loading-screen">
+        <div class="loading-content">
+          <div class="loading-glyph">𓆸</div>
+          <div>Loading Lotus Editor...</div>
+          <div class="loading-bar">
+            <div class="loading-progress"></div>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>
