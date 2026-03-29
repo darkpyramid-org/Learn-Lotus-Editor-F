@@ -66,6 +66,8 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    // Disable sourcemaps to fix UI component errors
+    sourcemap: false,
     // Optimize build for better performance
     rollupOptions: {
       output: {
