@@ -11,7 +11,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg", "apple-touch-icon.png", "glyph-palette/*.svg"],
+      includeAssets: ["favicon.svg", "apple-touch-icon.png", "jseshGlyphs/*.svg"],
       manifest: {
         name: "Lotus | Hieroglyphic Editor",
         short_name: "Lotus",

@@ -50,7 +50,7 @@ export async function loadGlyph(id: string): Promise<GlyphCache> {
 
   const promise = (async () => {
     try {
-      const res = await fetch(`/glyphs/${id}.svg`);
+      const res = await fetch(`/jseshGlyphs/${id}.svg`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = await res.text();
       const meta = extractMeta(text);
@@ -98,7 +98,7 @@ export function getCachedGlyph(id: string): GlyphCache | null {
 
 /** Get the public URL for a glyph SVG file (for use in <img src> or <image href>) */
 export function getGlyphUrl(id: string): string {
-  return `/glyphs/${id}.svg`;
+  return `/jseshGlyphs/${id}.svg`;
 }
 
 export type { GlyphCache };

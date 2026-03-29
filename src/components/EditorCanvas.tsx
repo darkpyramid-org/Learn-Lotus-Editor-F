@@ -136,21 +136,31 @@ function GlyphNodeSVG({
       style={{ cursor: "pointer", opacity: loading ? 0 : 1 }}
     >
       {/* Selection Highlight */}
-      {selected && (
+      {selected && glyph && (
         <g>
-          <rect
-            x={x}
-            y={y}
-            width={quadratSize}
-            height={quadratSize}
-            rx={8}
-            className="fill-primary/5 stroke-primary stroke-[2] animate-pulse"
-            strokeDasharray="4 4"
-          />
-          <circle cx={x} cy={y} r="3" className="fill-primary" />
-          <circle cx={x+quadratSize} cy={y} r="3" className="fill-primary" />
-          <circle cx={x} cy={y+quadratSize} r="3" className="fill-primary" />
-          <circle cx={x+quadratSize} cy={y+quadratSize} r="3" className="fill-primary" />
+          {(() => {
+            const rw = glyph.width * finalScale + 8;
+            const rh = glyph.height * finalScale + 8;
+            const rx = tx - rw / 2;
+            const ry = ty - rh / 2;
+            return (
+              <>
+                <rect
+                  x={rx}
+                  y={ry}
+                  width={rw}
+                  height={rh}
+                  rx={8}
+                  className="fill-primary/5 stroke-primary stroke-[1.5] animate-pulse"
+                  strokeDasharray="4 4"
+                />
+                <circle cx={rx} cy={ry} r="2.5" className="fill-primary" />
+                <circle cx={rx + rw} cy={ry} r="2.5" className="fill-primary" />
+                <circle cx={rx} cy={ry + rh} r="2.5" className="fill-primary" />
+                <circle cx={rx + rw} cy={ry + rh} r="2.5" className="fill-primary" />
+              </>
+            );
+          })()}
         </g>
       )}
       

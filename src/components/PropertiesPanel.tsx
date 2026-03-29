@@ -82,14 +82,17 @@ export function PropertiesPanel() {
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-6">
           {/* Identity Card */}
-          {glyph && (
+          {glyph ? (
             <Card className="overflow-hidden border-none shadow-sm ring-1 ring-border/50">
-              <div className="w-full aspect-[4/3] flex items-center justify-center p-6 bg-gradient-to-b from-muted/50 to-muted/20">
+              <div className="w-full h-48 flex items-center justify-center p-0.5 bg-gradient-to-b from-muted/50 to-muted/20 relative">
                  <img 
                    src={getGlyphUrl(glyph.id)} 
                    alt={glyph.label} 
-                   className="w-full h-full object-contain drop-shadow-md transition-transform duration-500 hover:scale-110"
-                   style={{ filter: "brightness(0) saturate(100%) invert(30%) sepia(50%) saturate(600%) hue-rotate(10deg)" }}
+                   className="w-[85%] h-[85%] object-contain drop-shadow-md transition-transform duration-500 hover:scale-105"
+                   style={{ 
+                     filter: "brightness(0) saturate(100%) invert(30%) sepia(50%) saturate(600%) hue-rotate(10deg)",
+                     marginTop: "-1px" 
+                   }}
                  />
               </div>
               <CardContent className="p-4 text-center">
@@ -100,6 +103,8 @@ export function PropertiesPanel() {
                 </Badge>
               </CardContent>
             </Card>
+          ) : (
+            null
           )}
 
           <Separator className="bg-border/40" />

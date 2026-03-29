@@ -3,34 +3,44 @@ import { GLYPH_DATASET, CATEGORIES } from "@/data/glyphs";
 import { useEditorStore } from "@/store/editorStore";
 import { GlyphDef } from "@/types/editor";
 import { getGlyphUrl } from "@/services/glyphLoader";
-import { Search, X, Loader2 } from "lucide-react";
+import { Search, X, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function GlyphPalette() {
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
+  const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
   const addGlyph = useEditorStore((s) => s.addGlyph);
 
-  const filtered = useMemo(() => {
+  const toggleCat = (cat: string) => {
+    setExpandedCats(prev => ({ ...prev, [cat]: !prev[cat] }));
+  };
+
+  const grouped = useMemo(() => {
     const q = search.toLowerCase();
-    return GLYPH_DATASET.filter((g) => {
-      const matchCat = category === "All" || g.category === category;
+    const groups: Record<string, GlyphDef[]> = {};
+    
+    GLYPH_DATASET.forEach(g => {
       const matchSearch = !q || g.id.toLowerCase().includes(q) || g.label.toLowerCase().includes(q);
-      return matchCat && matchSearch;
+      if (matchSearch) {
+        if (!groups[g.category]) groups[g.category] = [];
+        groups[g.category].push(g);
+      }
     });
-  }, [search, category]);
+
+    return groups;
+  }, [search]);
 
   const clearSearch = useCallback(() => setSearch(""), []);
 
   return (
     <div className="palette-panel flex flex-col h-full bg-card">
       {/* Search Header */}
-      <div className="px-4 pt-4 pb-2 space-y-3">
+      <div className="px-4 pt-4 pb-2 space-y-3 shrink-0">
         <h2 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] px-1">
           Hieroglyph Palette
         </h2>
@@ -53,46 +63,65 @@ export function GlyphPalette() {
         </div>
       </div>
 
-      {/* Tabs with Horizontal Scroll */}
-      <Tabs defaultValue="All" value={category} onValueChange={setCategory} className="w-full">
-        <div className="px-2 border-b border-border">
-          <ScrollArea className="w-full whitespace-nowrap">
-            <TabsList className="bg-transparent h-9 w-max flex px-2 gap-1 pb-2">
-              {["All", ...CATEGORIES].map((cat) => (
-                <TabsTrigger
-                  key={cat}
-                  value={cat}
-                  className="rounded-full text-[10px] h-6 px-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold uppercase transition-all"
-                >
-                  {cat}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </div>
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full custom-scrollbar">
+          <div className="p-4 space-y-8">
+            {Object.keys(grouped).length > 0 ? (
+              Object.entries(grouped).map(([cat, glyphs]) => {
+                const isExpanded = expandedCats[cat] || search.length > 0;
+                const visibleGlyphs = isExpanded ? glyphs : glyphs.slice(0, 4);
+                const hasMore = glyphs.length > 4;
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-[calc(100vh-170px)]">
-            <div className="p-3 grid grid-cols-2 lg:grid-cols-3 gap-2">
-              {filtered.map((glyph) => (
-                <GlyphCard key={glyph.id} glyph={glyph} onAdd={addGlyph} />
-              ))}
-              {filtered.length === 0 && (
-                <div className="col-span-full flex flex-col items-center justify-center py-20 text-center opacity-40">
-                  <div className="text-4xl mb-3">𓇌</div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest">No matching signs</p>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </div>
-      </Tabs>
-      
-      <div className="mt-auto px-4 py-2 border-t border-border bg-muted/20">
+                return (
+                  <div key={cat} className="space-y-4">
+                    <div 
+                      className="flex items-center justify-between group cursor-pointer"
+                      onClick={() => toggleCat(cat)}
+                    >
+                      <h3 className="text-[10px] font-bold text-foreground/50 uppercase tracking-[0.2em] group-hover:text-primary transition-colors">
+                        {cat}
+                      </h3>
+                      {hasMore && !search && (
+                        <div className="flex items-center gap-2 text-[9px] font-bold text-muted-foreground/40 group-hover:text-primary transition-colors uppercase">
+                          <span>{glyphs.length} signs</span>
+                          {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      {visibleGlyphs.map((glyph) => (
+                        <GlyphCard key={glyph.id} glyph={glyph} onAdd={addGlyph} />
+                      ))}
+                    </div>
+
+                    {hasMore && !isExpanded && !search && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleCat(cat)}
+                        className="w-full h-8 text-[9px] font-bold uppercase tracking-widest text-primary/60 hover:text-primary hover:bg-primary/5 border border-dashed border-primary/20 rounded-xl"
+                      >
+                        Show all signs
+                      </Button>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
+                <div className="text-4xl mb-3">𓇌</div>
+                <p className="text-[10px] font-bold uppercase tracking-widest">No matching signs</p>
+              </div>
+            )}
+          </div>
+          <ScrollBar orientation="vertical" />
+        </ScrollArea>
+      </div>
+
+      <div className="mt-auto px-4 py-2 border-t border-border bg-muted/20 shrink-0">
         <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-widest">
-          {filtered.length} Signs {category !== "All" && `in ${category}`}
+           Signs categorized by Gardiner group
         </p>
       </div>
     </div>
