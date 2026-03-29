@@ -5,24 +5,28 @@ import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  base: "./",
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      includeAssets: ["favicon.svg", "apple-touch-icon.png", "glyph-palette/*.svg"],
       manifest: {
         name: "Lotus | Hieroglyphic Editor",
         short_name: "Lotus",
-        description: "Professional Hieroglyphic SVG Editor",
+        description: "Professional Hieroglyphic SVG Editor for Archaeology Students",
+        display: "standalone",
         theme_color: "#f4ece1",
+        background_color: "#f4ece1",
         icons: [
           {
-            src: "/icon-192.png",
+            src: "icon-192.png",
             sizes: "192x192",
             type: "image/png",
           },
           {
-            src: "/icon-512.png",
+            src: "icon-512.png",
             sizes: "512x512",
             type: "image/png",
           },
@@ -34,19 +38,19 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "src"),
     },
-    dedupe: ["react", "react-dom"],
   },
-  root: path.resolve(__dirname),
   build: {
-    outDir: path.resolve(__dirname, "dist"),
+    outDir: "dist",
     emptyOutDir: true,
   },
   server: {
     port: 5173,
-    host: "0.0.0.0",
+    host: true,
   },
   preview: {
     port: 4173,
-    host: "0.0.0.0",
+    host: true,
   },
 });
+
+
