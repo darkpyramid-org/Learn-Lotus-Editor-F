@@ -36,37 +36,10 @@ export function GlyphPalette() {
     return groups;
   }, [search]);
 
-  // Preload priority glyphs immediately and visible glyphs when component mounts
+  // Preload priority glyphs immediately on mount
   useEffect(() => {
-    // Preload most common glyphs first
     preloadPriorityGlyphs();
-    
-    // Then preload visible glyphs
-    const visibleGlyphs = Object.values(grouped).flat().slice(0, 12); // Reduced to 12 for faster initial load
-    const glyphIds = visibleGlyphs.map(g => g.id);
-    preloadGlyphs(glyphIds);
-  }, [grouped]);
-
-  // Preload more glyphs when scrolling
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const scrollPercent = scrollTop / (scrollHeight - clientHeight);
-      
-      // Preload more glyphs when 80% scrolled (reduced threshold)
-      if (scrollPercent > 0.8) {
-        const allGlyphs = Object.values(grouped).flat();
-        const nextBatch = allGlyphs.slice(12, 30).map(g => g.id); // Smaller batches
-        preloadGlyphs(nextBatch);
-      }
-    };
-
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [grouped]);
+  }, []);
 
   const clearSearch = useCallback(() => setSearch(""), []);
 
@@ -122,7 +95,7 @@ export function GlyphPalette() {
                       )}
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 min-[320px]:grid-cols-4 lg:grid-cols-2 gap-3">
                       {visibleGlyphs.map((glyph) => (
                         <GlyphCard key={glyph.id} glyph={glyph} onAdd={addGlyph} />
                       ))}
@@ -173,29 +146,50 @@ function GlyphCard({
 }) {
   const [imgStatus, setImgStatus] = useState<"loading" | "success" | "error">("loading");
   const [svgContent, setSvgContent] = useState<string>("");
-  const url = getGlyphUrl(glyph.id);
+  const [isVisible, setIsVisible] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
-  // Try to load from optimized cache first, fallback to direct image loading
   useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '150px' });
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible) return;
+    
+    let mounted = true;
     const cached = getCachedGlyph(glyph.id);
     if (cached) {
       setSvgContent(cached.content);
       setImgStatus("success");
     } else {
-      // Load via optimized loader
+      // Load via optimized loader only when visible
       loadGlyph(glyph.id)
         .then(glyphData => {
-          setSvgContent(glyphData.content);
-          setImgStatus("success");
+          if (mounted) {
+            setSvgContent(glyphData.content);
+            setImgStatus("success");
+          }
         })
         .catch(() => {
-          setImgStatus("error");
+          if (mounted) setImgStatus("error");
         });
     }
-  }, [glyph.id]);
+    return () => { mounted = false; };
+  }, [glyph.id, isVisible]);
 
   return (
     <Card 
+      ref={cardRef}
       className="cursor-pointer group hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 overflow-hidden"
       onClick={() => onAdd(glyph.id)}
     >
@@ -205,28 +199,14 @@ function GlyphCard({
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/30 absolute" />
           )}
           
-          {/* Use SVG content directly if available for better performance */}
-          {svgContent && imgStatus === "success" ? (
+          {/* Render SVG directly after resolving */}
+          {imgStatus === "success" && (
             <div
-              className="w-full h-full p-1 transition-opacity duration-300"
+              className="w-full h-full p-1 transition-opacity duration-300 animate-in fade-in"
               style={{ 
                 filter: "brightness(0) saturate(100%) invert(30%) sepia(50%) saturate(600%) hue-rotate(10deg)" 
               }}
               dangerouslySetInnerHTML={{ __html: svgContent }}
-            />
-          ) : (
-            <img
-              src={url}
-              alt={glyph.label}
-              onLoad={() => setImgStatus("success")}
-              onError={() => setImgStatus("error")}
-              className={cn(
-                "w-full h-full object-contain p-1 transition-opacity duration-300",
-                imgStatus === "success" ? "opacity-100" : "opacity-0"
-              )}
-              style={{ 
-                filter: "brightness(0) saturate(100%) invert(30%) sepia(50%) saturate(600%) hue-rotate(10deg)" 
-              }}
             />
           )}
           

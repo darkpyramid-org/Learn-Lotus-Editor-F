@@ -29,7 +29,7 @@ const state: LoadingState = {
   pending: new Map(),
   cache: new Map(),
   preloadQueue: [],
-  batchSize: 15, // Increased batch size for faster loading
+  batchSize: 6, // Reduced batch size to match native HTTP concurrent limits
   maxCacheSize: 100, // Reduced cache size for faster initial load
   priorityGlyphs: new Set(['A1', 'G17', 'N35', 'M17', 'D21', 'I9', 'G1', 'F35']), // Most common glyphs
 };
@@ -143,57 +143,74 @@ function evictLRU(): void {
   }
 }
 
+// New batching infrastructure
+let batchQueue: string[] = [];
+let batchTimeout: ReturnType<typeof setTimeout> | null = null;
+const batchResolvers = new Map<string, Array<(val: GlyphCache) => void>>();
+const batchRejecters = new Map<string, Array<(err: any) => void>>();
+
+async function processBatch() {
+  if (batchQueue.length === 0) {
+    batchTimeout = null;
+    return;
+  }
+  
+  const currentBatch = batchQueue.splice(0, state.batchSize);
+  
+  // Set up next batch if needed
+  if (batchQueue.length > 0) {
+    batchTimeout = setTimeout(processBatch, 25);
+  } else {
+    batchTimeout = null;
+  }
+
+  const results = await loadGlyphBatch(currentBatch);
+  
+  for (const id of currentBatch) {
+    const glyph = results.get(id) || createFallbackGlyph(id);
+    state.cache.set(id, glyph);
+    state.pending.delete(id);
+    state.loading.delete(id);
+    
+    const resolvers = batchResolvers.get(id) || [];
+    batchResolvers.delete(id);
+    batchRejecters.delete(id);
+    
+    resolvers.forEach(resolve => resolve(glyph));
+  }
+  
+  evictLRU();
+}
+
 /** Load a glyph with intelligent batching and caching */
-export async function loadGlyph(id: string): Promise<GlyphCache> {
-  // Return cached glyph if available
+export function loadGlyph(id: string): Promise<GlyphCache> {
   if (state.cache.has(id)) {
     const cached = state.cache.get(id)!;
     cached.lastUsed = Date.now();
-    return cached;
+    return Promise.resolve(cached);
   }
 
-  // Return pending promise if already loading
   if (state.pending.has(id)) {
     return state.pending.get(id)!;
   }
 
-  // Add to batch loading queue
-  if (!state.loading.has(id)) {
-    state.preloadQueue.push(id);
-    state.loading.add(id);
-  }
+  const promise = new Promise<GlyphCache>((resolve, reject) => {
+    if (!batchResolvers.has(id)) {
+      batchResolvers.set(id, []);
+      batchRejecters.set(id, []);
+      batchQueue.push(id);
+      state.loading.add(id);
+    }
+    
+    batchResolvers.get(id)!.push(resolve);
+    batchRejecters.get(id)!.push(reject);
 
-  // Create promise for this glyph
-  const promise = new Promise<GlyphCache>((resolve) => {
-    // Process batch when queue is full or after short delay
-    const processBatch = async () => {
-      if (state.preloadQueue.length === 0) return;
-      
-      const batch = state.preloadQueue.splice(0, state.batchSize);
-      const results = await loadGlyphBatch(batch);
-      
-      // Update cache and resolve promises
-      for (const [glyphId, glyph] of results) {
-        state.cache.set(glyphId, glyph);
-        state.loading.delete(glyphId);
-        
-        if (glyphId === id) {
-          resolve(glyph);
-        }
-      }
-      
-      // Clean up pending promises
-      batch.forEach(batchId => state.pending.delete(batchId));
-      
-      // Manage cache size
-      evictLRU();
-    };
-
-    // Process immediately if batch is full, otherwise wait briefly for more requests
-    if (state.preloadQueue.length >= state.batchSize) {
+    if (batchQueue.length >= state.batchSize) {
+      if (batchTimeout) clearTimeout(batchTimeout);
+      batchTimeout = null;
       processBatch();
-    } else {
-      setTimeout(processBatch, 25); // Reduced delay for faster response
+    } else if (!batchTimeout) {
+      batchTimeout = setTimeout(processBatch, 25);
     }
   });
 
@@ -209,33 +226,9 @@ export function preloadPriorityGlyphs(): void {
 
 /** Preload a list of glyphs (fire and forget) */
 export function preloadGlyphs(ids: string[]): void {
-  const uncachedIds = ids.filter(id => 
-    !state.cache.has(id) && 
-    !state.pending.has(id) && 
-    !state.loading.has(id)
-  );
-
-  uncachedIds.forEach(id => {
-    state.preloadQueue.push(id);
-    state.loading.add(id);
+  ids.forEach(id => {
+    loadGlyph(id).catch(console.warn);
   });
-
-  // Process batches immediately for preloading
-  const processBatches = async () => {
-    while (state.preloadQueue.length > 0) {
-      const batch = state.preloadQueue.splice(0, state.batchSize);
-      const results = await loadGlyphBatch(batch);
-      
-      for (const [id, glyph] of results) {
-        state.cache.set(id, glyph);
-        state.loading.delete(id);
-      }
-      
-      evictLRU();
-    }
-  };
-
-  processBatches().catch(console.warn);
 }
 
 /** Get cached glyph synchronously */
@@ -260,6 +253,13 @@ export function clearCache(): void {
   state.pending.clear();
   state.loading.clear();
   state.preloadQueue.length = 0;
+  batchQueue.length = 0;
+  batchResolvers.clear();
+  batchRejecters.clear();
+  if (batchTimeout) {
+    clearTimeout(batchTimeout);
+    batchTimeout = null;
+  }
 }
 
 /** Get cache statistics */
@@ -267,7 +267,7 @@ export function getCacheStats() {
   return {
     cacheSize: state.cache.size,
     pendingLoads: state.pending.size,
-    queueSize: state.preloadQueue.length,
+    queueSize: batchQueue.length,
     maxCacheSize: state.maxCacheSize,
     performance: performanceMonitor.getMetrics(),
   };

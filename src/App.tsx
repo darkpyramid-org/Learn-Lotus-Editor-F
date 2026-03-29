@@ -1,52 +1,70 @@
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState } from "react";
 import { useEditorStore } from "@/store/editorStore";
 import { copyToClipboard, pasteFromClipboard } from "@/services/clipboardService";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
-import { PerformanceStats } from "@/components/PerformanceStats";
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetTrigger, 
-  SheetHeader, 
-  SheetTitle,
-  SheetDescription 
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { 
-  Palette, 
-  Settings2, 
-  Menu,
-  RotateCw, 
-  FlipHorizontal2, 
-  FlipVertical2, 
-  Minus, 
-  Plus, 
-  Trash2, 
-  Copy, 
-  ClipboardPaste, 
-  ChevronLeft, 
-  ChevronRight, 
-  ZoomIn, 
-  ZoomOut, 
-  Eraser
-} from "lucide-react";
+
 import { toast } from "sonner";
+import { Toolbar } from "@/components/Toolbar";
 
-// Lazy load heavy components
-const GlyphPalette = lazy(() => import("@/components/GlyphPalette").then(m => ({ default: m.GlyphPalette })));
-const EditorCanvas = lazy(() => import("@/components/EditorCanvas").then(m => ({ default: m.EditorCanvas })));
-const Toolbar = lazy(() => import("@/components/Toolbar").then(m => ({ default: m.Toolbar })));
-const PropertiesPanel = lazy(() => import("@/components/PropertiesPanel").then(m => ({ default: m.PropertiesPanel })));
+// Ultra-lazy load heavy components - only when actually needed
+let GlyphPalette: any = null;
+let EditorCanvas: any = null;
+let PropertiesPanel: any = null;
+let PerformanceStats: any = null;
 
-// Lightweight loading component
-function ComponentLoader() {
-  return (
-    <div className="flex items-center justify-center p-4">
-      <div className="animate-spin h-4 w-4 border-2 border-amber-500 border-t-transparent rounded-full"></div>
-    </div>
-  );
+const loadComponent = async (name: string) => {
+  switch (name) {
+    case 'GlyphPalette':
+      if (!GlyphPalette) {
+        const module = await import("@/components/GlyphPalette");
+        GlyphPalette = module.GlyphPalette;
+      }
+      return GlyphPalette;
+    case 'EditorCanvas':
+      if (!EditorCanvas) {
+        const module = await import("@/components/EditorCanvas");
+        EditorCanvas = module.EditorCanvas;
+      }
+      return EditorCanvas;
+    case 'PropertiesPanel':
+      if (!PropertiesPanel) {
+        const module = await import("@/components/PropertiesPanel");
+        PropertiesPanel = module.PropertiesPanel;
+      }
+      return PropertiesPanel;
+    case 'PerformanceStats':
+      if (!PerformanceStats) {
+        const module = await import("@/components/PerformanceStats");
+        PerformanceStats = module.PerformanceStats;
+      }
+      return PerformanceStats;
+    default:
+      return null;
+  }
+};
+
+// Lightweight component wrapper
+function LazyComponent({ name, fallback = null }: { name: string; fallback?: React.ReactNode }) {
+  const [Component, setComponent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadComponent(name).then((comp) => {
+      setComponent(() => comp);
+      setLoading(false);
+    });
+  }, [name]);
+
+  if (loading) {
+    return fallback || (
+      <div className="flex items-center justify-center p-4">
+        <div className="animate-spin h-4 w-4 border-2 border-amber-500 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  return Component ? <Component /> : null;
 }
 
 function Editor() {
@@ -126,6 +144,26 @@ function Editor() {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
     window.addEventListener("resize", checkMobile);
+    
+    // Register PWA after app is loaded
+    setTimeout(async () => {
+      if ('serviceWorker' in navigator) {
+        try {
+          const { registerSW } = await import("virtual:pwa-register");
+          registerSW({
+            onNeedRefresh() {
+              console.log("New content available, please refresh.");
+            },
+            onOfflineReady() {
+              console.log("App ready to work offline.");
+            },
+          });
+        } catch (e) {
+          console.log("PWA registration failed:", e);
+        }
+      }
+    }, 2000);
+    
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
@@ -159,262 +197,32 @@ function Editor() {
       <div className="app-shell h-screen w-screen flex flex-col overflow-hidden bg-background">
         {/* Top Navigation / Toolbar */}
         <header className="toolbar-area border-b border-border bg-card/80 backdrop-blur-md z-50 shrink-0 h-14 flex items-center px-4 relative">
-          {/* Desktop Toolbar */}
-          <div className="hidden lg:flex w-full">
-            <Suspense fallback={<ComponentLoader />}>
-              <Toolbar />
-            </Suspense>
-          </div>
-          
-          {/* Mobile Header */}
-          <div className="lg:hidden flex items-center justify-between w-full">
-            {/* Left: Brand */}
-            <div className="flex items-center gap-2 select-none shrink-0">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-md">
-                <span className="text-sm text-primary-foreground font-black">𓂀</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-foreground uppercase tracking-[0.15em] leading-none">Lotus</span>
-                <span className="text-[8px] font-bold text-muted-foreground/60 uppercase tracking-tighter">Editor</span>
-              </div>
-            </div>
-
-            {/* Center: Quick Actions */}
-            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none px-2 flex-1 justify-center">
-              {/* Transform buttons */}
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 shrink-0" 
-                onClick={handleRotate}
-                disabled={!hasSelection}
-              >
-                <RotateCw size={14} />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 shrink-0" 
-                onClick={handleFlipX}
-                disabled={!hasSelection}
-              >
-                <FlipHorizontal2 size={14} />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 shrink-0" 
-                onClick={handleFlipY}
-                disabled={!hasSelection}
-              >
-                <FlipVertical2 size={14} />
-              </Button>
-              
-              <Separator orientation="vertical" className="h-6 mx-1" />
-              
-              {/* Scale buttons */}
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 shrink-0" 
-                onClick={() => handleScale(-0.1)}
-                disabled={!hasSelection}
-              >
-                <Minus size={14} />
-              </Button>
-              <div className="h-6 px-2 flex items-center justify-center bg-muted/40 rounded text-[9px] font-mono min-w-[40px] shrink-0">
-                {firstSelected ? `${Math.round(firstSelected.transform.scale * 100)}%` : "100%"}
-              </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 shrink-0" 
-                onClick={() => handleScale(0.1)}
-                disabled={!hasSelection}
-              >
-                <Plus size={14} />
-              </Button>
-              
-              <Separator orientation="vertical" className="h-6 mx-1" />
-              
-              {/* Copy/Paste */}
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 shrink-0" 
-                onClick={handleCopy}
-                disabled={nodes.length === 0}
-              >
-                <Copy size={14} />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 shrink-0" 
-                onClick={handlePaste}
-              >
-                <ClipboardPaste size={14} />
-              </Button>
-            </div>
-
-            {/* Right: Menu Actions */}
-            <div className="flex items-center gap-1 shrink-0">
-              {/* More Tools Menu */}
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-900/70">
-                    <Menu size={16} />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="top" className="h-auto max-h-[50vh] bg-[#fdfaf5] border-b">
-                  <SheetHeader className="sr-only">
-                    <SheetTitle>More Tools</SheetTitle>
-                    <SheetDescription>Additional editing tools</SheetDescription>
-                  </SheetHeader>
-                  <div className="py-4">
-                    <div className="grid grid-cols-4 gap-3">
-                      {/* Layer Order */}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-12 flex flex-col gap-1" 
-                        onClick={() => handleReorder("left")}
-                        disabled={!firstSelected}
-                      >
-                        <ChevronLeft size={16} />
-                        <span className="text-[9px]">Layer ←</span>
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-12 flex flex-col gap-1" 
-                        onClick={() => handleReorder("right")}
-                        disabled={!firstSelected}
-                      >
-                        <ChevronRight size={16} />
-                        <span className="text-[9px]">Layer →</span>
-                      </Button>
-                      
-                      {/* Zoom */}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-12 flex flex-col gap-1" 
-                        onClick={() => setZoom(Math.max(0.25, zoom - 0.25))}
-                      >
-                        <ZoomOut size={16} />
-                        <span className="text-[9px]">Zoom -</span>
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-12 flex flex-col gap-1" 
-                        onClick={() => setZoom(Math.min(4, zoom + 0.25))}
-                      >
-                        <ZoomIn size={16} />
-                        <span className="text-[9px]">Zoom +</span>
-                      </Button>
-                      
-                      {/* Delete Actions */}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-12 flex flex-col gap-1 text-destructive border-destructive/20" 
-                        onClick={removeSelected}
-                        disabled={!hasSelection}
-                      >
-                        <Trash2 size={16} />
-                        <span className="text-[9px]">Delete</span>
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-12 flex flex-col gap-1 text-destructive border-destructive/20" 
-                        onClick={clearAll}
-                        disabled={nodes.length === 0}
-                      >
-                        <Eraser size={16} />
-                        <span className="text-[9px]">Clear All</span>
-                      </Button>
-                      
-                      {/* Status Info */}
-                      <div className="h-12 flex flex-col justify-center items-center bg-muted/20 rounded border border-dashed">
-                        <span className="text-[10px] font-bold text-primary">{Math.round(zoom * 100)}%</span>
-                        <span className="text-[8px] text-muted-foreground">Zoom</span>
-                      </div>
-                      <div className="h-12 flex flex-col justify-center items-center bg-muted/20 rounded border border-dashed">
-                        <span className="text-[10px] font-bold text-primary">{nodes.length}</span>
-                        <span className="text-[8px] text-muted-foreground">Signs</span>
-                      </div>
-                    </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
-
-              {/* Glyph Palette */}
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-900/70">
-                    <Palette size={16} />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="p-0 w-[280px] sm:w-[320px] bg-[#fdfaf5]">
-                  <SheetHeader className="sr-only">
-                    <SheetTitle>Glyph Palette</SheetTitle>
-                    <SheetDescription>Browse and add hieroglyphs</SheetDescription>
-                  </SheetHeader>
-                  <Suspense fallback={<ComponentLoader />}>
-                    <GlyphPalette />
-                  </Suspense>
-                </SheetContent>
-              </Sheet>
-
-              {/* Properties Panel */}
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-900/70">
-                    <Settings2 size={16} />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="p-0 w-[240px] bg-[#fdfaf5]">
-                  <SheetHeader className="sr-only">
-                    <SheetTitle>Properties</SheetTitle>
-                    <SheetDescription>Edit selected glyph transform</SheetDescription>
-                  </SheetHeader>
-                  <Suspense fallback={<ComponentLoader />}>
-                    <PropertiesPanel />
-                  </Suspense>
-                </SheetContent>
-              </Sheet>
-            </div>
-          </div>
+          <Toolbar 
+            isMobile={isMobile}
+            paletteNode={<LazyComponent name="GlyphPalette" />}
+            propertiesNode={<LazyComponent name="PropertiesPanel" />}
+          />
         </header>
 
         <div className="main-area flex flex-1 overflow-hidden relative">
           {/* Desktop Left Sidebar: Palette */}
           {!isMobile && (
             <aside className="palette-sidebar border-r border-border bg-card transition-all duration-300 shadow-sm z-30" style={{ width: "260px", flexShrink: 0 }}>
-              <Suspense fallback={<ComponentLoader />}>
-                <GlyphPalette />
-              </Suspense>
+              <LazyComponent name="GlyphPalette" />
             </aside>
           )}
 
           {/* Center: Editor Content */}
           <main className="editor-main flex-1 overflow-hidden relative bg-[#f4ece1]">
             <div className="canvas-bg h-full w-full overflow-auto scrollbar-thin">
-              <Suspense fallback={<ComponentLoader />}>
-                <EditorCanvas />
-              </Suspense>
+              <LazyComponent name="EditorCanvas" />
             </div>
           </main>
 
           {/* Desktop Right Sidebar: Properties */}
           {!isMobile && (
             <aside className="props-sidebar border-l border-border bg-card transition-all duration-300 shadow-sm z-30" style={{ width: "240px", flexShrink: 0 }}>
-              <Suspense fallback={<ComponentLoader />}>
-                <PropertiesPanel />
-              </Suspense>
+              <LazyComponent name="PropertiesPanel" />
             </aside>
           )}
         </div>
@@ -462,7 +270,7 @@ function Editor() {
         )}
       </div>
       <Toaster position="bottom-center" richColors />
-      <PerformanceStats />
+      <LazyComponent name="PerformanceStats" />
     </TooltipProvider>
   );
 }

@@ -7,20 +7,17 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig({
   base: "./",
   plugins: [
-    react({
-      // Enable React Fast Refresh optimizations
-      fastRefresh: true,
-    }),
+    react(),
     tailwindcss(),
     VitePWA({
       registerType: "prompt", // Changed from autoUpdate to reduce initial load
       includeAssets: ["icon-192.png", "icon-512.png"],
-      // Removed jseshGlyphs from PWA precaching to reduce initial load time
+      // Minimal PWA for faster initial load
       workbox: {
         // Only cache essential files initially
-        globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+        globPatterns: ["**/*.{js,css,html,ico,png}"],
         globIgnores: ["**/jseshGlyphs/**"], // Don't precache all SVGs
-        maximumFileSizeToCacheInBytes: 3000000, // 3MB limit
+        maximumFileSizeToCacheInBytes: 2000000, // 2MB limit
         runtimeCaching: [
           {
             // Cache SVG glyphs on demand
@@ -29,7 +26,7 @@ export default defineConfig({
             options: {
               cacheName: "glyph-cache",
               expiration: {
-                maxEntries: 100, // Limit cached glyphs
+                maxEntries: 50, // Reduced from 100
                 maxAgeSeconds: 60 * 60 * 24 * 7, // 1 week
               },
             },
@@ -68,13 +65,13 @@ export default defineConfig({
     emptyOutDir: true,
     // Disable sourcemaps to fix UI component errors
     sourcemap: false,
-    // Optimize build for better performance
+    // Aggressive optimization for faster loading
     rollupOptions: {
       output: {
         manualChunks: {
-          // Split vendor libraries into separate chunks
-          vendor: ["react", "react-dom"],
-          ui: ["lucide-react"],
+          // Simple chunking to avoid circular dependencies
+          'react-libs': ['react', 'react-dom'],
+          'ui-libs': ['lucide-react'],
         },
       },
     },
@@ -84,10 +81,11 @@ export default defineConfig({
       compress: {
         drop_console: true, // Remove console.log in production
         drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info', 'console.debug'], // Remove specific console methods
       },
     },
-    // Optimize chunk size
-    chunkSizeWarningLimit: 1000,
+    // Optimize chunk size for faster loading
+    chunkSizeWarningLimit: 500, // Reduced from 1000
   },
   server: {
     port: 5173,
@@ -97,10 +95,10 @@ export default defineConfig({
     port: 4173,
     host: true,
   },
-  // Optimize dependencies
+  // Optimize dependencies for faster dev startup
   optimizeDeps: {
-    include: ["react", "react-dom", "zustand", "lucide-react"],
-    exclude: ["@tanstack/react-query"], // Removed since we're not using it anymore
+    include: ["react", "react-dom", "zustand"],
+    exclude: ["lucide-react"], // Lazy load icons
   },
 });
 
