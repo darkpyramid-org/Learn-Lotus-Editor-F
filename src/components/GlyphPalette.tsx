@@ -155,7 +155,7 @@ function GlyphCard({
         setIsVisible(true);
         observer.disconnect();
       }
-    }, { rootMargin: '150px' });
+    }, { rootMargin: '50px' });
 
     if (cardRef.current) {
       observer.observe(cardRef.current);
