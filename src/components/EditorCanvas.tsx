@@ -40,11 +40,13 @@ function GlyphLightbox({ glyphId, onClose }: LightboxProps) {
         style={{
           background: "url('https://www.transparenttextures.com/patterns/natural-paper.png'), #fdfaf5",
           border: "1px solid rgba(180,140,80,0.35)",
-          maxWidth: "min(82vw, 640px)",
-          maxHeight: "min(80vh, 640px)",
-          width: "min(82vw, 640px)",
-          height: "min(80vh, 640px)",
+          maxWidth: "min(90vw, 800px)",
+          maxHeight: "min(80vh, 600px)",
+          width: "auto",
+          height: "auto",
           padding: "40px",
+          minWidth: "400px",
+          minHeight: "400px",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -103,7 +105,10 @@ export function EditorCanvas() {
     <>
       <div
         className="canvas-wrapper w-full h-full overflow-auto p-6 md:p-10 relative"
-        style={{ background: "url('https://www.transparenttextures.com/patterns/natural-paper.png'), #f4ece1" }}
+        style={{ 
+          background: "url('https://www.transparenttextures.com/patterns/natural-paper.png'), #f4ece1",
+          minHeight: "calc(100vh - 120px)" // Account for header and footer
+        }}
         onClick={handleBgClick}
       >
         {nodes.length === 0 ? (

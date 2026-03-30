@@ -213,7 +213,7 @@ function Editor() {
           )}
 
           {/* Center: Editor Content */}
-          <main className="editor-main flex-1 overflow-hidden relative bg-[#f4ece1]">
+          <main className="editor-main flex-1 overflow-hidden relative bg-[#f4ece1] h-full">
             <div className="canvas-bg h-full w-full overflow-auto scrollbar-thin">
               <LazyComponent name="EditorCanvas" />
             </div>
