@@ -17,6 +17,8 @@ interface EditorState {
   reorderNode: (id: string, direction: "left" | "right") => void;
   setZoom: (z: number) => void;
   clearAll: () => void;
+  lightboxInstanceId: string | null;
+  setLightboxInstanceId: (id: string | null) => void;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -87,5 +89,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setZoom: (zoom) => set({ zoom }),
 
-  clearAll: () => set({ nodes: [], selectedIds: new Set() }),
+  clearAll: () => set({ nodes: [], selectedIds: new Set(), lightboxInstanceId: null }),
+
+  lightboxInstanceId: null,
+  setLightboxInstanceId: (id) => set({ lightboxInstanceId: id }),
 }));

@@ -1,27 +1,29 @@
 import { useEditorStore } from "@/store/editorStore";
 import { GLYPH_DATASET } from "@/data/glyphs";
-import { getGlyphUrl } from "@/services/glyphLoader";
 import { 
   RotateCw, 
   FlipHorizontal2, 
   FlipVertical2, 
-  Info, 
   Layers, 
   Maximize, 
-  MousePointer2 
+  MousePointer2,
+  Minus,
+  Plus,
+  ZoomIn,
+  ZoomOut
 } from "lucide-react";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function PropertiesPanel() {
-  const { nodes, selectedIds, updateTransform } = useEditorStore();
+  const { nodes, selectedIds, zoom, setZoom, updateTransform } = useEditorStore();
 
   const selectedNodes = nodes.filter((n) => selectedIds.has(n.instanceId));
   const hasSelection = selectedNodes.length > 0;
@@ -29,7 +31,7 @@ export function PropertiesPanel() {
   if (!hasSelection) {
     return (
       <div className="properties-panel h-full flex flex-col bg-card/50">
-        <header className="px-4 py-3 border-b border-border bg-card">
+        <header className="px-4 py-5 border-b border-border bg-card flex items-center justify-between">
           <h3 className="text-[10px] font-extrabold text-foreground/70 uppercase tracking-[0.2em]">
             Inspector
           </h3>
@@ -56,7 +58,8 @@ export function PropertiesPanel() {
   };
 
   const handleScale = (val: number) => {
-    selectedNodes.forEach((n) => updateTransform(n.instanceId, { scale: val }));
+    const next = Math.max(0.2, Math.min(3, val));
+    selectedNodes.forEach((n) => updateTransform(n.instanceId, { scale: +next.toFixed(2) }));
   };
 
   const setFlip = (dir: 'x' | 'y', active: boolean) => {
@@ -68,47 +71,79 @@ export function PropertiesPanel() {
 
   return (
     <div className="properties-panel h-full flex flex-col bg-card/50 overflow-hidden">
-      <header className="px-4 py-3 border-b border-border bg-card flex items-center justify-between shrink-0">
-        <h3 className="text-[10px] font-extrabold text-foreground/70 uppercase tracking-[0.2em]">
-          Sign Properties
-        </h3>
-        {selectedNodes.length > 1 && (
-          <Badge variant="secondary" className="text-[9px] font-black h-5 uppercase tracking-tighter bg-primary/20 text-primary border-none">
-            {selectedNodes.length} Selected
-          </Badge>
-        )}
+      <header className="px-4 py-5 border-b border-border bg-card flex items-center justify-between shrink-0 w-full">
+        <div className="flex items-center gap-2">
+          <h3 className="text-[10px] font-extrabold text-foreground/70 uppercase tracking-[0.2em]">
+            Sign Properties
+          </h3>
+          {selectedNodes.length > 1 && (
+            <Badge variant="secondary" className="text-[9px] font-black h-5 uppercase tracking-tighter bg-primary/20 text-primary border-none">
+              {selectedNodes.length} Selected
+            </Badge>
+          )}
+        </div>
       </header>
 
-      {/* Scrollable body — scrollbar on the LEFT */}
-      <div className="flex-1 flex flex-row-reverse min-h-0">
-        <ScrollArea className="flex-1 min-h-0">
-          <ScrollBar orientation="vertical" className="left-0 right-auto border-r border-r-transparent border-l-0" />
-        <div className="p-4 space-y-6">
-          {/* Identity Card */}
-          {glyph ? (
-            <Card className="overflow-hidden border-none shadow-sm ring-1 ring-border/50 pt-0">
-              <div className="w-full h-48 flex items-center justify-center p-0.5 bg-gradient-to-b from-muted/50 to-muted/20 relative">
-                 <img 
-                   src={getGlyphUrl(glyph.id)} 
-                   alt={glyph.label} 
-                   className="w-[85%] h-[85%] object-contain drop-shadow-md transition-transform duration-500 hover:scale-105"
-                   style={{ 
-                     filter: "brightness(0) saturate(100%) invert(30%) sepia(50%) saturate(600%) hue-rotate(10deg)",
-                     marginTop: "-1px" 
-                   }}
-                 />
-              </div>
-              <CardContent className="p-4 text-center">
-                <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mb-1">Gardiner {glyph.id}</p>
-                <p className="font-heading font-bold text-foreground text-sm leading-tight mb-2.5">{glyph.label}</p>
-                <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-tight text-muted-foreground/70 bg-muted/30">
-                  {glyph.category}
-                </Badge>
-              </CardContent>
-            </Card>
-          ) : (
-            null
-          )}
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full w-full">
+          <div className="p-4 space-y-6">
+          {/* Controls — Now primary focus as Identity moved to Canvas & Lightbox */}
+
+          {/* Canvas Zoom Controls */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                <ZoomIn size={12} className="text-foreground/60" />
+                Canvas Zoom
+              </Label>
+              <span className="text-[11px] font-mono text-primary font-bold bg-primary/10 px-1.5 py-0.5 rounded">
+                {Math.round(zoom * 100)}%
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-7 w-7 rounded-full border-input/40 shrink-0"
+                onClick={() => setZoom(Math.max(0.25, zoom - 0.25))}
+              >
+                <ZoomOut size={12} strokeWidth={3} />
+              </Button>
+              <Slider
+                min={0.25}
+                max={4}
+                step={0.25}
+                value={[zoom]}
+                onValueChange={([val]: number[]) => setZoom(val)}
+                className="flex-1 cursor-pointer"
+              />
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-7 w-7 rounded-full border-input/40 shrink-0"
+                onClick={() => setZoom(Math.min(4, zoom + 0.25))}
+              >
+                <ZoomIn size={12} strokeWidth={3} />
+              </Button>
+            </div>
+            <ToggleGroup 
+              type="single" 
+              value={zoom.toString()} 
+              onValueChange={(val: string) => val && setZoom(Number(val))}
+              className="grid grid-cols-4 gap-1 w-full"
+            >
+              {[0.5, 1, 1.5, 2].map((z) => (
+                <ToggleGroupItem 
+                  key={z} 
+                  value={z.toString()} 
+                  className="text-[9px] font-black h-8 px-0 rounded-md border border-input/40 bg-card hover:bg-accent data-[state=on]:bg-primary data-[state=on]:text-primary-foreground transition-all duration-200"
+                >
+                  {Math.round(z * 100)}%
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
 
           <Separator className="bg-border/40" />
 
@@ -162,30 +197,48 @@ export function PropertiesPanel() {
                   {Math.round(scale * 100)}%
                 </span>
               </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-7 w-7 rounded-full border-input/40 shrink-0"
+                  onClick={() => handleScale(scale - 0.1)}
+                >
+                  <Minus size={12} strokeWidth={3} />
+                </Button>
+                <Slider
+                  min={0.2}
+                  max={3.0}
+                  step={0.05}
+                  value={[scale]}
+                  onValueChange={([val]: number[]) => handleScale(val)}
+                  className="flex-1 cursor-pointer"
+                />
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-7 w-7 rounded-full border-input/40 shrink-0"
+                  onClick={() => handleScale(scale + 0.1)}
+                >
+                  <Plus size={12} strokeWidth={3} />
+                </Button>
+              </div>
               <ToggleGroup 
                 type="single" 
                 value={scale.toString()} 
                 onValueChange={(val: string) => val && handleScale(Number(val))}
-                className="grid grid-cols-3 gap-1 w-full"
+                className="grid grid-cols-5 gap-1 w-full"
               >
-                {[0.5, 1, 1.5].map((s) => (
+                {[0.5, 0.75, 1, 1.5, 2].map((s) => (
                   <ToggleGroupItem 
                     key={s} 
                     value={s.toString()} 
-                    className="text-[10px] font-black h-8 px-0 rounded-md border border-input/40 bg-card hover:bg-accent data-[state=on]:bg-primary data-[state=on]:text-primary-foreground transition-all duration-200"
+                    className="text-[9px] font-black h-8 px-0 rounded-md border border-input/40 bg-card hover:bg-accent data-[state=on]:bg-primary data-[state=on]:text-primary-foreground transition-all duration-200"
                   >
-                    {s * 100}%
+                    {Math.round(s * 100)}%
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
-              <Slider
-                min={0.2}
-                max={3.0}
-                step={0.05}
-                value={[scale]}
-                onValueChange={([val]: number[]) => handleScale(val)}
-                className="cursor-pointer"
-              />
             </div>
 
             {/* Flip Controls */}
@@ -218,7 +271,7 @@ export function PropertiesPanel() {
               </div>
             </div>
           </div>
-        </div>
+          </div>
         </ScrollArea>
       </div>
       

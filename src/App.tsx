@@ -10,8 +10,9 @@ import { Toolbar } from "@/components/Toolbar";
 // Ultra-lazy load heavy components - only when actually needed
 let GlyphPalette: any = null;
 let EditorCanvas: any = null;
-let PropertiesPanel: any = null;
 let PerformanceStats: any = null;
+let PropertiesPanel: any = null;
+let GlyphLightbox: any = null;
 
 const loadComponent = async (name: string) => {
   switch (name) {
@@ -33,6 +34,12 @@ const loadComponent = async (name: string) => {
         PropertiesPanel = module.PropertiesPanel;
       }
       return PropertiesPanel;
+    case 'GlyphLightbox':
+      if (!GlyphLightbox) {
+        const module = await import("@/components/GlyphLightbox");
+        GlyphLightbox = module.GlyphLightbox;
+      }
+      return GlyphLightbox;
     case 'PerformanceStats':
       if (!PerformanceStats) {
         const module = await import("@/components/PerformanceStats");
@@ -45,7 +52,7 @@ const loadComponent = async (name: string) => {
 };
 
 // Lightweight component wrapper
-function LazyComponent({ name, fallback = null }: { name: string; fallback?: React.ReactNode }) {
+function LazyComponent({ name, fallback = null, ...props }: { name: string; fallback?: React.ReactNode; [key: string]: any }) {
   const [Component, setComponent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -64,7 +71,7 @@ function LazyComponent({ name, fallback = null }: { name: string; fallback?: Rea
     );
   }
 
-  return Component ? <Component /> : null;
+  return Component ? <Component {...props} /> : null;
 }
 
 function Editor() {
@@ -200,7 +207,6 @@ function Editor() {
           <Toolbar 
             isMobile={isMobile}
             paletteNode={<LazyComponent name="GlyphPalette" />}
-            propertiesNode={<LazyComponent name="PropertiesPanel" />}
           />
         </header>
 
@@ -214,17 +220,18 @@ function Editor() {
 
           {/* Center: Editor Content */}
           <main className="editor-main flex-1 overflow-hidden relative bg-[#f4ece1] h-full">
-            <div className="canvas-bg h-full w-full overflow-auto scrollbar-thin">
+            <div className="canvas-bg h-full w-full relative">
               <LazyComponent name="EditorCanvas" />
             </div>
           </main>
 
           {/* Desktop Right Sidebar: Properties */}
           {!isMobile && (
-            <aside className="props-sidebar border-l border-border bg-card transition-all duration-300 shadow-sm z-30" style={{ width: "240px", flexShrink: 0 }}>
+            <aside className="props-sidebar border-l border-border bg-card transition-all duration-300 shadow-sm z-30" style={{ width: "260px", flexShrink: 0 }}>
               <LazyComponent name="PropertiesPanel" />
             </aside>
           )}
+
         </div>
 
         {/* Mobile Status Bar */}
@@ -271,6 +278,13 @@ function Editor() {
       </div>
       <Toaster position="bottom-center" richColors />
       <LazyComponent name="PerformanceStats" />
+      {useEditorStore.getState().lightboxInstanceId && (
+        <LazyComponent 
+          name="GlyphLightbox" 
+          instanceId={useEditorStore.getState().lightboxInstanceId} 
+          onClose={() => useEditorStore.getState().setLightboxInstanceId(null)} 
+        />
+      )}
     </TooltipProvider>
   );
 }

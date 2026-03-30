@@ -5,9 +5,21 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
+    "dev:host": "vite --config vite.config.ts --host 0.0.0.0 --port 5173",
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "preview": "vite preview --config vite.config.ts --host 0.0.0.0",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo 'ESLint not configured yet - add ESLint configuration'",
+    "lint:fix": "echo 'ESLint not configured yet - add ESLint configuration'",
+    "test": "echo 'Tests not configured yet - add Vitest configuration'",
+    "test:watch": "echo 'Tests not configured yet - add Vitest configuration'",
+    "test:coverage": "echo 'Tests not configured yet - add Vitest configuration'",
+    "docker:build": "docker build -t lotus-editor:latest .",
+    "docker:run": "docker run -d -p 3000:80 --name lotus-editor lotus-editor:latest",
+    "docker:dev": "docker-compose --profile dev up --build",
+    "docker:stop": "docker stop lotus-editor && docker rm lotus-editor",
+    "docker:logs": "docker logs -f lotus-editor"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

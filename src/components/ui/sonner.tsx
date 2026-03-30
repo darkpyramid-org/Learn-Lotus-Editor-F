@@ -8,24 +8,15 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme="light"
       className="toaster group"
-      icons={{
-        // Custom icons can be added here if needed
-      }}
-      style={
-        {
-          "--normal-bg": "var(--card)",
-          "--normal-text": "var(--foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
-        } as React.CSSProperties
-      }
+      closeButton={true}
       toastOptions={{
         classNames: {
-          toast: "group toast group-[.toaster]:bg-card group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground text-[10px]",
-          actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
-          cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
-          title: "text-[11px] font-bold uppercase tracking-tight"
+          toast: "group toast group-[.toaster]:bg-[#fdfaf5] group-[.toaster]:text-amber-950 group-[.toaster]:border-amber-900/10 group-[.toaster]:shadow-[0_8px_30px_rgb(0,0,0,0.08)] group-[.toaster]:rounded-2xl",
+          description: "group-[.toast]:text-amber-900/60 text-[10px] font-medium leading-relaxed",
+          actionButton: "group-[.toast]:bg-amber-600 group-[.toast]:text-white font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl",
+          cancelButton: "group-[.toast]:bg-amber-900/5 group-[.toast]:text-amber-900/40 font-bold text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl",
+          title: "text-[11px] font-black uppercase tracking-[0.1em] text-amber-900/90",
+          closeButton: "group-[.toast]:bg-amber-900/5 group-[.toast]:text-amber-900/40 group-[.toast]:hover:bg-amber-900/10 transition-all",
         },
       }}
       {...props}
