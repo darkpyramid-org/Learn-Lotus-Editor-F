@@ -90,6 +90,9 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    watch: {
+      ignored: ['**/public/jseshGlyphs/**'],
+    },
   },
   preview: {
     port: 4173,
@@ -97,8 +100,7 @@ export default defineConfig({
   },
   // Optimize dependencies for faster dev startup
   optimizeDeps: {
-    include: ["react", "react-dom", "zustand"],
-    exclude: ["lucide-react"], // Lazy load icons
+    include: ["react", "react-dom", "zustand", "lucide-react"],
   },
 });
 

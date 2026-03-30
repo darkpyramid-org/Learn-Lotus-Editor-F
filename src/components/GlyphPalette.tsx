@@ -95,7 +95,7 @@ export function GlyphPalette() {
                       )}
                     </div>
                     
-                    <div className="grid grid-cols-3 min-[320px]:grid-cols-4 lg:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-3">
                       {visibleGlyphs.map((glyph) => (
                         <GlyphCard key={glyph.id} glyph={glyph} onAdd={addGlyph} />
                       ))}
@@ -199,14 +199,15 @@ function GlyphCard({
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/30 absolute" />
           )}
           
-          {/* Render SVG directly after resolving */}
+          {/* Render SVG off the main browser thread via native image decoding */}
           {imgStatus === "success" && (
-            <div
-              className="w-full h-full p-1 transition-opacity duration-300 animate-in fade-in"
+            <img
+              src={`data:image/svg+xml;utf8,${encodeURIComponent(svgContent)}`}
+              alt={glyph.label}
+              className="w-full h-full object-contain p-2 transition-opacity duration-300 animate-in fade-in"
               style={{ 
                 filter: "brightness(0) saturate(100%) invert(30%) sepia(50%) saturate(600%) hue-rotate(10deg)" 
               }}
-              dangerouslySetInnerHTML={{ __html: svgContent }}
             />
           )}
           

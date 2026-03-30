@@ -11,12 +11,12 @@ import {
   MousePointer2 
 } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -67,7 +67,7 @@ export function PropertiesPanel() {
   };
 
   return (
-    <div className="properties-panel h-full flex flex-col bg-card/50">
+    <div className="properties-panel h-full flex flex-col bg-card/50 overflow-hidden">
       <header className="px-4 py-3 border-b border-border bg-card flex items-center justify-between shrink-0">
         <h3 className="text-[10px] font-extrabold text-foreground/70 uppercase tracking-[0.2em]">
           Sign Properties
@@ -79,7 +79,10 @@ export function PropertiesPanel() {
         )}
       </header>
 
-      <ScrollArea className="flex-1">
+      {/* Scrollable body — scrollbar on the LEFT */}
+      <div className="flex-1 flex flex-row-reverse min-h-0">
+        <ScrollArea className="flex-1 min-h-0">
+          <ScrollBar orientation="vertical" className="left-0 right-auto border-r border-r-transparent border-l-0" />
         <div className="p-4 space-y-6">
           {/* Identity Card */}
           {glyph ? (
@@ -192,31 +195,32 @@ export function PropertiesPanel() {
                 Symmetry
               </Label>
               <div className="grid grid-cols-2 gap-2">
-                <Card 
+                <div
                   className={cn(
-                    "p-2.5 flex flex-col items-center gap-2 cursor-pointer transition-all border-none ring-1 ring-border/50",
+                    "p-2.5 flex flex-col items-center gap-2 cursor-pointer transition-all rounded-md ring-1 ring-border/50",
                     flipX ? "bg-primary/10 ring-primary/40" : "bg-card hover:bg-accent/40"
                   )}
                   onClick={() => setFlip('x', !flipX)}
                 >
                   <FlipHorizontal2 size={16} className={flipX ? "text-primary" : "text-foreground/60"} />
                   <span className={cn("text-[9px] font-black uppercase tracking-tighter", flipX ? "text-primary" : "text-muted-foreground/60")}>Horizontal</span>
-                </Card>
-                <Card 
+                </div>
+                <div
                   className={cn(
-                    "p-2.5 flex flex-col items-center gap-2 cursor-pointer transition-all border-none ring-1 ring-border/50",
+                    "p-2.5 flex flex-col items-center gap-2 cursor-pointer transition-all rounded-md ring-1 ring-border/50",
                     flipY ? "bg-primary/10 ring-primary/40" : "bg-card hover:bg-accent/40"
                   )}
                   onClick={() => setFlip('y', !flipY)}
                 >
                   <FlipVertical2 size={16} className={flipY ? "text-primary" : "text-foreground/60"} />
                   <span className={cn("text-[9px] font-black uppercase tracking-tighter", flipY ? "text-primary" : "text-muted-foreground/60")}>Vertical</span>
-                </Card>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </ScrollArea>
+        </ScrollArea>
+      </div>
       
       <footer className="shrink-0 p-4 border-t border-border bg-muted/20">
          <div className="flex items-center justify-between text-[9px] font-mono font-bold text-muted-foreground/40">

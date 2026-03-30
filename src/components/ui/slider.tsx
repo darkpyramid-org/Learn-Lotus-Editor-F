@@ -5,19 +5,15 @@ import * as SliderPrimitive from "@radix-ui/react-slider"
 
 import { cn } from "@/lib/utils"
 
-function Slider({
-  className,
-  defaultValue,
-  value,
-  min = 0,
-  max = 100,
-  step = 1,
-  ...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>) {
+const Slider = React.forwardRef<
+  React.ElementRef<typeof SliderPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
+>(({ className, defaultValue, value, min = 0, max = 100, step = 1, ...props }, ref) => {
   const _value = value || defaultValue || [min]
   
   return (
     <SliderPrimitive.Root
+      ref={ref}
       data-slot="slider"
       className={cn(
         "relative flex w-full touch-none select-none items-center",
@@ -47,6 +43,7 @@ function Slider({
       ))}
     </SliderPrimitive.Root>
   )
-}
+})
+Slider.displayName = SliderPrimitive.Root.displayName
 
 export { Slider }
