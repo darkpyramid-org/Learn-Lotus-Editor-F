@@ -3,7 +3,7 @@ import { useEditorStore } from "@/store/editorStore";
 import { GlyphNode } from "@/types/editor";
 import { loadGlyph, GlyphCache } from "@/services/optimizedGlyphLoader";
 import { cn } from "@/lib/utils";
-import { Loader2, X, Search, ZoomIn } from "lucide-react";
+import { Loader2, X, ZoomIn } from "lucide-react";
 import { extractInnerSVGContent } from "@/lib/svg-utils";
 import { GLYPH_DATASET } from "@/data/glyphs";
 import { Badge } from "@/components/ui/badge";
@@ -52,9 +52,11 @@ export function EditorCanvas() {
            <div
             className="flex flex-wrap gap-6 w-full items-start content-start"
             style={{
-              transform: `scale(${zoom})`,
-              transformOrigin: "top left",
-            }}
+              // Use the non-standard-but-universally-supported `zoom`
+              // property so scaled content actually reserves layout space
+              // (CSS transforms do not affect layout and clip overflow).
+              zoom: zoom,
+            } as React.CSSProperties}
             onClick={handleBgClick}
           >
             {nodes.map((node) => (
@@ -69,8 +71,7 @@ export function EditorCanvas() {
                 }}
                 onRemove={(e) => {
                   e.stopPropagation();
-                  selectNode(node.instanceId, false);
-                  setTimeout(() => useEditorStore.getState().removeSelected(), 0);
+                  useEditorStore.getState().removeNode(node.instanceId);
                 }}
                 onLightbox={(e) => {
                   e.stopPropagation();
@@ -114,7 +115,7 @@ function GlyphNodeCard({ node, quadratSize, selected, onSelect, onRemove, onLigh
 
   // Standard scale for canonical preview
   const naturalScale = glyphContent ? (quadratSize * 0.7) / Math.max(glyphContent.width, glyphContent.height) : 0;
-  const finalScale = naturalScale;
+  const finalScale = naturalScale * node.transform.scale;
 
   let minX = 0, minY = 0;
   if (glyphContent?.viewBox) {
@@ -126,9 +127,12 @@ function GlyphNodeCard({ node, quadratSize, selected, onSelect, onRemove, onLigh
   const tx = quadratSize / 2;
   const ty = (quadratSize * 1.1) / 2; // Slightly lower center for icon overhead
 
+  const { rotate, flipX, flipY } = node.transform;
+
   const transformStr = [
     `translate(${tx}, ${ty})`,
-    `scale(${finalScale}, ${finalScale})`,
+    `rotate(${rotate})`,
+    `scale(${flipX ? -finalScale : finalScale}, ${flipY ? -finalScale : finalScale})`,
     `translate(${-cx}, ${-cy})`,
   ].join(" ");
 

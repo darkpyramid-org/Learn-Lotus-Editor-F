@@ -70,7 +70,7 @@ A production-quality, web-based hieroglyphic SVG editor built with React + TypeS
 
   ## Tech Stack
 
-  - React 19 + TypeScript
+  - React 18 + TypeScript
   - Vite
   - Zustand (state management)
   - TailwindCSS v4
@@ -117,8 +117,8 @@ A production-quality, web-based hieroglyphic SVG editor built with React + TypeS
 
   ```bash
   # Clone the repository
-  git clone https://github.com/darkpyramid/lotus-editor.git
-  cd lotus-editor
+  git clone https://github.com/darkpyramid-org/Learn-Lotus-Editor-F.git
+  cd Learn-Lotus-Editor-F
 
   # Install dependencies
   npm install

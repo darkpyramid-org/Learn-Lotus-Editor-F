@@ -1,7 +1,7 @@
-import { GlyphNode } from "@/types/editor";
+import { GlyphNode, GlyphTransform } from "@/types/editor";
 import { GLYPH_IDS } from "@/data/glyphs";
 import { buildExportSVG, SvgContentMap } from "./svgBuilder";
-import { loadGlyph } from "./glyphLoader";
+import { loadGlyph } from "./optimizedGlyphLoader";
 
 export type CopySize = "small" | "large" | "wysiwyg";
 
@@ -12,19 +12,19 @@ export async function copyToClipboard(
 ): Promise<void> {
   if (nodes.length === 0) return;
 
-  // Fetch all necessary SVGs first
+  // Fetch all necessary SVGs first (deduplicated by glyph id)
   const svgMap: SvgContentMap = {};
-  const promises = nodes.map(async (node) => {
-    if (!svgMap[node.glyphId]) {
-      const data = await loadGlyph(node.glyphId);
-      svgMap[node.glyphId] = {
+  const uniqueIds = [...new Set(nodes.map((n) => n.glyphId))];
+  await Promise.all(
+    uniqueIds.map(async (glyphId) => {
+      const data = await loadGlyph(glyphId);
+      svgMap[glyphId] = {
         content: data.content,
         width: data.width,
         height: data.height,
       };
-    }
-  });
-  await Promise.all(promises);
+    })
+  );
 
   const svgString = buildExportSVG(nodes, svgMap, size, quadratSize);
   const htmlString = `<!DOCTYPE html><html><body>${svgString}</body></html>`;
@@ -46,22 +46,76 @@ export async function copyToClipboard(
 
 export interface ParsedNode {
   glyphId: string;
-  transform: { rotate: number; scale: number; flipX: boolean; flipY: boolean };
+  transform: GlyphTransform;
 }
 
+const IDENTITY_TRANSFORM: GlyphTransform = { rotate: 0, scale: 1, flipX: false, flipY: false };
+
+function isValidGlyphId(id: unknown): id is string {
+  return typeof id === "string" && GLYPH_IDS.has(id);
+}
+
+function normalizeTransform(raw: any): GlyphTransform {
+  const rotate = Number(raw?.rotate);
+  const scale = Number(raw?.scale);
+  return {
+    rotate: Number.isFinite(rotate) ? rotate : 0,
+    scale: Number.isFinite(scale) && scale > 0 ? scale : 1,
+    flipX: raw?.flipX === true || raw?.flipx === true || raw?.flipx === "true",
+    flipY: raw?.flipY === true || raw?.flipy === true || raw?.flipy === "true",
+  };
+}
+
+function normalizeNode(raw: any): ParsedNode | null {
+  if (!raw || !isValidGlyphId(raw.glyphId)) return null;
+  return { glyphId: raw.glyphId, transform: normalizeTransform(raw.transform) };
+}
+
+/**
+ * Reconstruct editor nodes from an SVG string produced by buildEditorSVG.
+ * Prefers the embedded LOTUS_DATA JSON manifest; falls back to the
+ * per-group data-* attributes on each <g>.
+ */
 export function parseSVGToNodes(svgString: string): ParsedNode[] {
   try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(svgString, "image/svg+xml");
-    const groups = Array.from(doc.querySelectorAll("svg > g"));
-    
-    // We try to extract glyph IDs from the text content if it was saved there 
-    // or just use common sense if we can't. 
-    // For now, simple fallback:
-    return groups.map(() => ({
-      glyphId: "A1", // Default placeholder if we can't find ID
-      transform: { rotate: 0, scale: 1, flipX: false, flipY: false },
-    }));
+    const doc = new DOMParser().parseFromString(svgString, "image/svg+xml");
+    if (doc.querySelector("parsererror")) return [];
+
+    // 1) JSON manifest comment
+    const walker = doc.createTreeWalker(doc, NodeFilter.SHOW_COMMENT);
+    let comment: Comment | null;
+    while ((comment = walker.nextNode() as Comment | null)) {
+      const text = comment.nodeValue ?? "";
+      if (text.startsWith("LOTUS_DATA:")) {
+        try {
+          const data = JSON.parse(text.slice("LOTUS_DATA:".length));
+          if (Array.isArray(data)) {
+            const nodes = data.map(normalizeNode).filter((n): n is ParsedNode => n !== null);
+            if (nodes.length > 0) return nodes;
+          }
+        } catch {
+          // fall through to attribute parsing
+        }
+      }
+    }
+
+    // 2) data attributes on <g> wrappers
+    const groups = Array.from(doc.querySelectorAll("g[data-glyph-id]"));
+    const nodes: ParsedNode[] = [];
+    for (const g of groups) {
+      const glyphId = g.getAttribute("data-glyph-id");
+      if (!isValidGlyphId(glyphId)) continue;
+      nodes.push({
+        glyphId,
+        transform: normalizeTransform({
+          rotate: g.getAttribute("data-rotate"),
+          scale: g.getAttribute("data-scale"),
+          flipx: g.getAttribute("data-flipx"),
+          flipy: g.getAttribute("data-flipy"),
+        }),
+      });
+    }
+    return nodes;
   } catch {
     return [];
   }
@@ -72,10 +126,7 @@ export function parsePlainTextToNodes(text: string): ParsedNode[] {
     .trim()
     .split(/\s+/)
     .filter((id) => GLYPH_IDS.has(id))
-    .map((glyphId) => ({
-      glyphId,
-      transform: { rotate: 0, scale: 1, flipX: false, flipY: false },
-    }));
+    .map((glyphId) => ({ glyphId, transform: { ...IDENTITY_TRANSFORM } }));
 }
 
 export async function pasteFromClipboard(): Promise<ParsedNode[]> {
@@ -87,8 +138,8 @@ export async function pasteFromClipboard(): Promise<ParsedNode[]> {
         const html = await blob.text();
         const match = html.match(/<svg[\s\S]*?<\/svg>/i);
         if (match) {
-          // Attempt to find IDs in the plane text first if available
-          // (Most apps bundle both)
+          const nodes = parseSVGToNodes(match[0]);
+          if (nodes.length > 0) return nodes;
         }
       }
       if (item.types.includes("text/plain")) {
@@ -99,12 +150,12 @@ export async function pasteFromClipboard(): Promise<ParsedNode[]> {
       }
     }
   } catch {
-    try {
-      const text = await navigator.clipboard.readText();
-      return parsePlainTextToNodes(text);
-    } catch {
-      return [];
-    }
+    // read() requires permission – fall back to readText()
   }
-  return [];
+  try {
+    const text = await navigator.clipboard.readText();
+    return parsePlainTextToNodes(text);
+  } catch {
+    return [];
+  }
 }

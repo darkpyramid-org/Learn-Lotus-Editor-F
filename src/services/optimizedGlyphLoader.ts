@@ -12,6 +12,8 @@ interface GlyphCache {
   height: number;
   aspectRatio: number;
   lastUsed: number;
+  /** True when this entry is a local placeholder for a failed request (never cached). */
+  isFallback?: boolean;
 }
 
 interface LoadingState {
@@ -52,7 +54,7 @@ function createFallbackGlyph(id: string): GlyphCache {
       <line x1="85" y1="15" x2="15" y2="85" stroke="#b45309" stroke-width="3"/>
       <text x="50" y="96" font-size="18" text-anchor="middle" fill="#b45309" font-family="monospace">${id}</text>
     </svg>`,
-    viewBox: "0 0 100 100", width: 100, height: 100, aspectRatio: 1, lastUsed: Date.now(),
+    viewBox: "0 0 100 100", width: 100, height: 100, aspectRatio: 1, lastUsed: Date.now(), isFallback: true,
   };
 }
 
@@ -112,7 +114,11 @@ export function loadGlyph(id: string): Promise<GlyphCache> {
   state.loading.add(id);
   
   const promise = loadSingleGlyph(id).then(glyph => {
-    state.cache.set(id, glyph);
+    // Never cache fallback placeholders – a transient failure must not
+    // permanently shadow the real glyph for the rest of the session.
+    if (!glyph.isFallback) {
+      state.cache.set(id, glyph);
+    }
     state.pending.delete(id);
     state.loading.delete(id);
     evictLRU();

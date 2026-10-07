@@ -1,4 +1,4 @@
-import { GlyphNode, GlyphTransform } from "@/types/editor";
+import { GlyphNode } from "@/types/editor";
 
 export const QUADRAT = 100;
 
@@ -27,10 +27,11 @@ export function buildEditorSVG(
 
       const x = i * quadratSize;
       const { rotate, scale, flipX, flipY } = node.transform;
-      
+
       const naturalScale = quadratSize / Math.max(glyph.width, glyph.height);
       const finalScale = naturalScale * scale;
-      
+
+      // Embed a slightly smaller glyph inside its quadrat
       const cx = glyph.width / 2;
       const cy = glyph.height / 2;
 
@@ -53,11 +54,15 @@ export function buildEditorSVG(
         .replace(/fill="#000000"/gi, 'fill="currentColor"')
         .replace(/style='fill:#000000; stroke:none'/gi, 'fill="currentColor"');
 
-      return `<g transform="${transformAttr}">${innerContent}</g>`;
+      // Persist glyph id + transform so the editor can reconstruct the
+      // scene when this SVG is pasted back (data attributes + JSON manifest).
+      return `<g transform="${transformAttr}" data-glyph-id="${node.glyphId}" data-rotate="${rotate}" data-scale="${scale}" data-flipx="${flipX}" data-flipy="${flipY}">${innerContent}</g>`;
     })
     .join("\n");
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}" style="color: #3e2723;">\n${children}\n</svg>`;
+  const manifest = nodes.map((n) => ({ glyphId: n.glyphId, transform: n.transform }));
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}" style="color: #3e2723;">\n<!--LOTUS_DATA:${JSON.stringify(manifest)}-->\n${children}\n</svg>`;
 }
 
 export function buildExportSVG(

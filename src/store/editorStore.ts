@@ -9,7 +9,8 @@ interface EditorState {
   quadratSize: number;
   zoom: number;
 
-  addGlyph: (glyphId: string) => void;
+  addGlyph: (glyphId: string, transform?: Partial<GlyphTransform>) => void;
+  removeNode: (id: string) => void;
   removeSelected: () => void;
   selectNode: (id: string, multi?: boolean) => void;
   deselectAll: () => void;
@@ -21,28 +22,48 @@ interface EditorState {
   setLightboxInstanceId: (id: string | null) => void;
 }
 
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 4;
+
 export const useEditorStore = create<EditorState>((set, get) => ({
   nodes: [],
   selectedIds: new Set(),
   quadratSize: 100,
   zoom: 1,
 
-  addGlyph: (glyphId) => {
+  addGlyph: (glyphId, transform) => {
     const glyph = GLYPH_DATASET.find((g) => g.id === glyphId);
     if (!glyph) return;
     const node: GlyphNode = {
       instanceId: nanoid(),
       glyphId,
-      transform: { rotate: 0, scale: 1, flipX: false, flipY: false },
+      transform: {
+        rotate: transform?.rotate ?? 0,
+        scale: transform?.scale ?? 1,
+        flipX: transform?.flipX ?? false,
+        flipY: transform?.flipY ?? false,
+      },
     };
     set((s) => ({ nodes: [...s.nodes, node] }));
   },
 
+  removeNode: (id) => {
+    set((s) => ({
+      nodes: s.nodes.filter((n) => n.instanceId !== id),
+      selectedIds: new Set([...s.selectedIds].filter((x) => x !== id)),
+      lightboxInstanceId: s.lightboxInstanceId === id ? null : s.lightboxInstanceId,
+    }));
+  },
+
   removeSelected: () => {
-    const { selectedIds } = get();
+    const { selectedIds, lightboxInstanceId } = get();
     set((s) => ({
       nodes: s.nodes.filter((n) => !selectedIds.has(n.instanceId)),
       selectedIds: new Set(),
+      lightboxInstanceId:
+        lightboxInstanceId && selectedIds.has(lightboxInstanceId)
+          ? null
+          : lightboxInstanceId,
     }));
   },
 
@@ -87,7 +108,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
   },
 
-  setZoom: (zoom) => set({ zoom }),
+  setZoom: (zoom) => {
+    if (typeof zoom !== "number" || Number.isNaN(zoom)) return;
+    set({ zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom)) });
+  },
 
   clearAll: () => set({ nodes: [], selectedIds: new Set(), lightboxInstanceId: null }),
 

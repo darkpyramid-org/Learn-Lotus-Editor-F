@@ -11,8 +11,7 @@ import {
   Eraser,
   Menu,
   Palette,
-  Bell,
-  Globe,
+  SlidersHorizontal,
   Sun,
   Moon
 } from "lucide-react";
@@ -20,21 +19,48 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { LanguageToggle } from "@/components/LanguageToggle";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetTrigger, 
-  SheetHeader, 
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
   SheetTitle,
-  SheetDescription 
+  SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { Link } from "wouter";
+
+function ThemeToggle() {
+  const [isDark, setIsDark] = useState<boolean>(() =>
+    typeof document !== "undefined" && document.documentElement.classList.contains("dark")
+  );
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", isDark);
+    try {
+      localStorage.setItem("lotus-theme", isDark ? "dark" : "light");
+    } catch {
+      /* storage unavailable */
+    }
+  }, [isDark]);
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-8 w-8 rounded-lg transition-all duration-200 ease-out"
+      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      onClick={() => setIsDark((v) => !v)}
+      aria-pressed={isDark}
+    >
+      <Sun size={16} className="sun-moon-icon sun" />
+      <Moon size={16} className="sun-moon-icon moon absolute inset-0 rotate-90 scale-0 opacity-0" />
+    </Button>
+  );
+}
 
 interface ToolbarProps {
   isMobile?: boolean;
@@ -43,16 +69,7 @@ interface ToolbarProps {
 }
 
 export function Toolbar({ isMobile = false, paletteNode, propertiesNode }: ToolbarProps) {
-  const {
-    nodes,
-    selectedIds,
-    quadratSize,
-    updateTransform,
-    removeSelected,
-    reorderNode,
-    clearAll,
-    addGlyph,
-  } = useEditorStore();
+  const { nodes, selectedIds, quadratSize, updateTransform, removeSelected, reorderNode, clearAll, addGlyph } = useEditorStore();
 
   const selectedNodes = nodes.filter((n) => selectedIds.has(n.instanceId));
   const hasSelection = selectedNodes.length > 0;
@@ -106,7 +123,7 @@ export function Toolbar({ isMobile = false, paletteNode, propertiesNode }: Toolb
   const handlePaste = async () => {
     const parsed = await pasteFromClipboard();
     if (parsed.length > 0) {
-      parsed.forEach((p) => addGlyph(p.glyphId));
+      parsed.forEach((p) => addGlyph(p.glyphId, p.transform));
       toast.success(`Pasted ${parsed.length} sign(s) into editor`);
     } else {
       toast.info("No valid hieroglyphic data found on clipboard");
@@ -117,8 +134,24 @@ export function Toolbar({ isMobile = false, paletteNode, propertiesNode }: Toolb
   if (isMobile) {
     return (
       <div className="flex items-center justify-between w-full h-14 px-4">
+        {/* Palette drawer (replaces the hidden left sidebar) */}
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" aria-label="Open glyph palette">
+              <Menu size={16} />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-[85vw] max-w-sm">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Hieroglyph Palette</SheetTitle>
+              <SheetDescription>Choose a sign to add to the canvas</SheetDescription>
+            </SheetHeader>
+            {paletteNode}
+          </SheetContent>
+        </Sheet>
+
         {/* Mobile Brand */}
-        <div className="flex items-center select-none group gap-2">
+        <Link href="/" className="flex items-center select-none group gap-2 mx-2 min-w-0" title="Back to home">
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300">
              <span className="text-primary-foreground font-black text-sm">𓂀</span>
           </div>
@@ -126,12 +159,29 @@ export function Toolbar({ isMobile = false, paletteNode, propertiesNode }: Toolb
             <span className="text-[10px] font-black text-foreground uppercase tracking-[0.15em] leading-none">Lotus</span>
             <span className="text-[8px] font-bold text-muted-foreground/60 uppercase tracking-tighter">Editor</span>
           </div>
-        </div>
+        </Link>
 
         {/* Mobile Actions */}
-        <div className="flex items-center gap-1">
-          <ToolButton icon={Copy} tooltip="Copy Selected" onClick={() => handleCopy('wysiwyg')} disabled={nodes.length === 0} />
+        <div className="flex items-center gap-1 ms-auto">
+          <LanguageToggle />
+          <ThemeToggle />
+          <ToolButton icon={Copy} tooltip="Copy" onClick={() => handleCopy('wysiwyg')} disabled={nodes.length === 0} />
           <ToolButton icon={ClipboardPaste} tooltip="Paste" onClick={handlePaste} />
+          {/* Inspector drawer (replaces the hidden right sidebar) */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Open sign properties">
+                <SlidersHorizontal size={16} />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="p-0 w-[85vw] max-w-sm">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Sign Properties</SheetTitle>
+                <SheetDescription>Rotate, scale and flip the selected signs</SheetDescription>
+              </SheetHeader>
+              {propertiesNode}
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     );
@@ -142,7 +192,7 @@ export function Toolbar({ isMobile = false, paletteNode, propertiesNode }: Toolb
     <div className="flex items-center w-full h-14">
       {/* Left Section - Brand (above Glyph Palette) */}
       <div className="flex items-center px-4" style={{ width: "260px", flexShrink: 0 }}>
-        <div className={cn("flex items-center select-none group gap-2.5")}>
+        <Link href="/" className="flex items-center select-none group gap-2.5" title="Back to home">
           <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center shadow-md shadow-primary/20 group-hover:scale-105 transition-transform duration-300">
              <span className="text-primary-foreground font-black text-lg">𓂀</span>
           </div>
@@ -150,7 +200,7 @@ export function Toolbar({ isMobile = false, paletteNode, propertiesNode }: Toolb
             <span className="text-[11px] font-black text-foreground uppercase tracking-[0.2em] leading-none">Lotus</span>
             <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-tighter">Editor Pro</span>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Center Section - Editor Controls (above Editor Canvas) */}
@@ -166,32 +216,9 @@ export function Toolbar({ isMobile = false, paletteNode, propertiesNode }: Toolb
 
       {/* Right Section - Menu Icons (above Sign Properties) */}
       <div className="flex items-center justify-end px-4" style={{ width: "240px", flexShrink: 0 }}>
-        <div className="flex items-center gap-1">
-          {/* Theme Toggle */}
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Sun size={16} className="rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon size={16} className="absolute rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          </Button>
-          
-          {/* Language Button */}
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Globe size={16} />
-          </Button>
-          
-          {/* Notification Icon */}
-          <Button variant="ghost" size="icon" className="h-8 w-8 relative">
-            <Bell size={16} />
-            <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full text-[8px] text-white flex items-center justify-center">
-              2
-            </span>
-          </Button>
-
-          {/* User Avatar Button */}
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <div className="w-5 h-5 rounded-full bg-amber-600 flex items-center justify-center text-white text-xs font-bold">
-              U
-            </div>
-          </Button>
+        <div className="flex items-center gap-2">
+          <LanguageToggle />
+          <ThemeToggle />
         </div>
       </div>
     </div>

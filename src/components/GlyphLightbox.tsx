@@ -312,11 +312,8 @@ export function GlyphLightbox({ instanceId, onClose }: GlyphLightboxProps) {
               <Copy size={14} className="mr-2 opacity-70" />Copy Vector
             </Button>
             <Button variant="destructive" className="w-full h-11 text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-red-500/10 hover:scale-[1.02] active:scale-[0.98] transition-all font-mono" onClick={() => {
-              useEditorStore.getState().selectNode(instanceId, false);
-              setTimeout(() => {
-                useEditorStore.getState().removeSelected();
-                onClose();
-              }, 0);
+              useEditorStore.getState().removeNode(instanceId);
+              onClose();
             }}>
               <Trash2 size={14} className="mr-2" />Remove Sign
             </Button>

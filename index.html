@@ -11,8 +11,6 @@
     <link rel="dns-prefetch" href="/" />
     
     <!-- Preload critical resources -->
-    <link rel="modulepreload" href="./src/main.tsx" />
-    <link rel="modulepreload" href="./src/App.tsx" />
     
     <link rel="icon" type="image/png" sizes="32x32" href="./icon-192.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="./icon-192.png" />
@@ -23,14 +21,14 @@
     <meta property="og:url" content="https://lotus-editor.vercel.app/" />
     <meta property="og:title" content="Lotus | Hieroglyphic SVG Editor" />
     <meta property="og:description" content="Design and manipulate hieroglyphic compositions with ease. High-quality SVG export and clipboard support." />
-    <meta property="og:image" content="./icon-512.png" />
+    <meta property="og:image" content="https://lotus-editor.vercel.app/icon-512.png" />
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
     <meta property="twitter:url" content="https://lotus-editor.vercel.app/" />
     <meta property="twitter:title" content="Lotus | Hieroglyphic SVG Editor" />
     <meta property="twitter:description" content="The production-ready Hieroglyphic editor for the modern web." />
-    <meta property="twitter:image" content="./icon-512.png" />
+    <meta property="twitter:image" content="https://lotus-editor.vercel.app/icon-512.png" />
 
     <!-- Optimize font loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -189,6 +187,14 @@
         </div>
       </div>
     </div>
+    <script>
+      // Apply the persisted theme before first paint to avoid a flash
+      try {
+        if (localStorage.getItem("lotus-theme") === "dark") {
+          document.documentElement.classList.add("dark");
+        }
+      } catch (e) { /* ignore */ }
+    </script>
     <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>
