@@ -87,5 +87,11 @@
     "radix-ui": "^1.4.3",
     "zustand": "^5.0.12",
     "wouter": "^3.3.5"
+  },
+  "optionalDependencies": {
+    "@tailwindcss/oxide-linux-arm64-gnu": "4.2.2",
+    "@tailwindcss/oxide-linux-arm64-musl": "4.2.2",
+    "@tailwindcss/oxide-linux-x64-gnu": "4.2.2",
+    "@tailwindcss/oxide-linux-x64-musl": "4.2.2"
   }
 }
